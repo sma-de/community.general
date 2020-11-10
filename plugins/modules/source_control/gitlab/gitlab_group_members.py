@@ -102,8 +102,28 @@ class GitLabGroup(object):
 
     # get group id if group exists
     def get_group_id(self, gitlab_group):
+        tmp = gitlab_group.split('/')
+
+        ##
+        ## note: one could argue that not handling full paths here is an upstream gitlab api issue and should not be solved here, and indeed there exists a recent gitlab merge which should fix this upstream when it becomes avaible in versions: https://gitlab.com/gitlab-org/gitlab/-/merge_requests/45729
+        ## TODO: this workaround becomes unnecessary when usptream changes becomes avaible
+        ##
+        if len(tmp) > 1:
+            # full path with parent(s), this is atm unsupported by upstream gitlab API
+            # note: technically this could also be full name instead of a full path, but we only do full paths here
+            gitlab_group = tmp[-1]
+
         group_exists = self._gitlab.groups.list(search=gitlab_group)
         if group_exists:
+            if len(tmp) > 1:
+                # filter matching groups by full path
+                gitlab_group = '/'.join(tmp)
+
+                for g in group_exists:
+                    if g.full_path.startswith(gitlab_group):
+                        return g
+
+                return None
             return group_exists[0].id
 
     # get all members in a group
