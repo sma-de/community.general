@@ -121,7 +121,7 @@ class GitLabGroup(object):
 
                 for g in group_exists:
                     if g.full_path.startswith(gitlab_group):
-                        return g
+                        return g.id
 
                 return None
             return group_exists[0].id
