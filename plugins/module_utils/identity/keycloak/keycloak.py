@@ -1275,7 +1275,8 @@ class KeycloakAPI(object):
             else:
                 all_groups = self.get_groups(realm=realm)
 
-            fooz = URL_GROUPS.format(url=self.baseurl, realm=realm) + '?search=GG'
+##/{realm}/groups/{id}/role-mappings/realm
+            fooz = "{url}/admin/realms/{realm}/groups/{iid}/role-mappings".format(url=self.baseurl, realm=realm, iid="1df708f3-9944-421a-a70a-d42ad0f64883")
             foo = to_native(open_url(fooz, method="GET", http_agent=self.http_agent, headers=self.restheaders,
                                                  timeout=self.connection_timeout,
                                                  validate_certs=self.validate_certs).read())
