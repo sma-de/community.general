@@ -1218,6 +1218,7 @@ class KeycloakAPI(object):
         :param realm: Return the groups of this realm (default "master").
         """
         groups_url = URL_GROUPS.format(url=self.baseurl, realm=realm)
+
         try:
             return json.loads(to_native(open_url(groups_url, method="GET", http_agent=self.http_agent, headers=self.restheaders,
                                                  timeout=self.connection_timeout,
@@ -1274,6 +1275,7 @@ class KeycloakAPI(object):
             else:
                 all_groups = self.get_groups(realm=realm)
 
+            self.module.fail_json(msg="da all groups:\n" + str(all_groups))
             for group in all_groups:
                 if group['name'] == name:
                     return self.get_group_by_groupid(group['id'], realm=realm)
