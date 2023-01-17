@@ -1275,7 +1275,11 @@ class KeycloakAPI(object):
             else:
                 all_groups = self.get_groups(realm=realm)
 
-            self.module.fail_json(msg="da all groups:\n" + str(all_groups))
+            foo = URL_GROUPS.format(url=self.baseurl + '?search=ldap', realm=realm)
+            foo = json.loads(to_native(open_url(foo, method="GET", http_agent=self.http_agent, headers=self.restheaders,
+                                                 timeout=self.connection_timeout,
+                                                 validate_certs=self.validate_certs).read()))
+            self.module.fail_json(msg="da all groups:\n" + str(foo))
             for group in all_groups:
                 if group['name'] == name:
                     return self.get_group_by_groupid(group['id'], realm=realm)
