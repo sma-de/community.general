@@ -1275,7 +1275,7 @@ class KeycloakAPI(object):
             else:
                 all_groups = self.get_groups(realm=realm)
 
-            fooz = URL_GROUPS.format(url=self.baseurl, realm=realm) + '?search=ldap'
+            fooz = URL_GROUPS.format(url=self.baseurl, realm=realm) + '?search=org'
             foo = to_native(open_url(fooz, method="GET", http_agent=self.http_agent, headers=self.restheaders,
                                                  timeout=self.connection_timeout,
                                                  validate_certs=self.validate_certs).read())
