@@ -1276,7 +1276,8 @@ class KeycloakAPI(object):
                 all_groups = self.get_groups(realm=realm)
 
 ##/{realm}/groups/{id}/role-mappings/realm
-            fooz = "{url}/admin/realms/{realm}/groups/{iid}/role-mappings".format(url=self.baseurl, realm=realm, iid="1df708f3-9944-421a-a70a-d42ad0f64883")
+##            fooz = "{url}/admin/realms/{realm}/groups/{iid}/role-mappings".format(url=self.baseurl, realm=realm, iid="1df708f3-9944-421a-a70a-d42ad0f64883")
+            fooz = URL_GROUPS.format(url=self.baseurl, realm=realm)
             foo = to_native(open_url(fooz, method="GET", http_agent=self.http_agent, headers=self.restheaders,
                                                  timeout=self.connection_timeout,
                                                  validate_certs=self.validate_certs).read())
@@ -1284,7 +1285,7 @@ class KeycloakAPI(object):
             ##self.module.fail_json(msg="da all groups:\n{}\n{}".format(fooz, foo))
 
             foo = json.loads(foo)
-            self.module.fail_json(msg="da all groups:\n{}\n{}".format(fooz, foo))
+            self.module.fail_json(msg="da all groups:\n" + str(foo))
             for group in all_groups:
                 if group['name'] == name:
                     return self.get_group_by_groupid(group['id'], realm=realm)
