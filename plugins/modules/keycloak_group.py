@@ -324,7 +324,7 @@ def main():
         name=dict(type='str'),
         attributes=dict(type='dict'),
         realm_roles=dict(
-            type='dict', elements='dict',
+            type='dict',
             options=dict(
                 strict=dict(type='bool', default=False),
                 present=dict(
