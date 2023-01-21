@@ -368,7 +368,11 @@ def main():
     name = module.params.get('name')
 
     attributes = module.params.get('attributes')
-    realm_roles = module.params.get('realm_roles')
+    realm_roles = module.params.get('realm_roles') or {
+      'strict': False,
+      'present': None,
+      'absent': None,
+    }
 
     parents = module.params.get('parents')
 
