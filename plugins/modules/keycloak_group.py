@@ -323,6 +323,18 @@ def main():
         id=dict(type='str'),
         name=dict(type='str'),
         attributes=dict(type='dict'),
+        realm_roles=dict(
+            type='dict', elements='dict',
+            options=dict(
+                strict=dict(type='bool', default=False),
+                present=dict(
+                    type='list', elements='str'
+                )
+                absent=dict(
+                    type='list', elements='str'
+                )
+            )
+        ),
         parents=dict(
             type='list', elements='dict',
             options=dict(
@@ -354,7 +366,9 @@ def main():
     state = module.params.get('state')
     gid = module.params.get('id')
     name = module.params.get('name')
+
     attributes = module.params.get('attributes')
+    realm_roles = module.params.get('realm_roles')
 
     parents = module.params.get('parents')
 
@@ -366,9 +380,15 @@ def main():
             module.params['attributes'][key] = [val] if not isinstance(val, list) else val
 
     # Filter and map the parameters names that apply to the group
+    ignore_keys = list(keycloak_argument_spec().keys())\
+                + ['state', 'realm', 'parents', 'realm_roles']
+
     group_params = [x for x in module.params
-                    if x not in list(keycloak_argument_spec().keys()) + ['state', 'realm', 'parents'] and
+                    if x not in ignore_keys and
                     module.params.get(x) is not None]
+
+    realm_roles_present = realm_roles['present'] or []
+    realm_roles_absent = realm_roles['absent'] or []
 
     # See if it already exists in Keycloak
     if gid is None:
@@ -378,13 +398,33 @@ def main():
 
     if before_group is None:
         before_group = {}
+    elif not realm_roles['strict']:
+        # when not being exclusive for realm roles we need to combine
+        # already pre existing group role mappings with the ones given
+        # as param in the correct way
+        tmp = realm_roles_present + before_group[camel('realm_roles')]
+        realm_roles_present = []
+
+        for x in tmp:
+            # ignore the ones being on the explicit remove list
+            if x not in realm_roles_absent:
+                realm_roles_present.append(x)
 
     # Build a proposed changeset from parameters given to this module
     changeset = {}
 
     for param in group_params:
         new_param_value = module.params.get(param)
-        old_value = before_group[param] if param in before_group else None
+        old_value = before_group.get(camel(param), None)
+
+        # note: be careful to avoid matching errors just because
+        #   lists are sorted differently
+        if isinstance(new_param_value, list):
+            new_param_value = sorted(new_param_value)
+
+        if isinstance(old_value, list):
+            old_value = sorted(old_value)
+
         if new_param_value != old_value:
             changeset[camel(param)] = new_param_value
 
