@@ -329,10 +329,10 @@ def main():
                 strict=dict(type='bool', default=False),
                 present=dict(
                     type='list', elements='str'
-                )
+                ),
                 absent=dict(
                     type='list', elements='str'
-                )
+                ),
             )
         ),
         parents=dict(
