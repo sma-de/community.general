@@ -37,7 +37,9 @@ options:
         description:
             - State of the group.
             - On C(present), the group will be created if it does not yet exist, or updated with the parameters you provide.
-            - On C(absent), the group will be removed if it exists.
+            - >-
+              On C(absent), the group will be removed if it exists. Be aware that absenting
+              a group with subgroups will automatically delete all its subgroups too.
         default: 'present'
         type: str
         choices:
@@ -70,15 +72,31 @@ options:
             - Values may be single values (e.g. a string) or a list of strings.
 
     parents:
-        version_added: TODO
+        version_added: "6.3.0"
         type: list
         description:
             - List of parent groups for the group to handle sorted top to bottom.
             - Set this to create a group as a subgroup of another group or groups (parents).
-            - Each element can describe a parent either by name or ID, both is
-              fine but using names needs some more internal API calls (to map
-              to ID's internally). On default given strings are interpreted as
-              names, to mark them as ID's prefix them with C(id:)
+        elements: dict
+        suboptions:
+          id:
+            type: str
+            description:
+              - Identify parent by ID
+              - Needs less API calls than using I(name)
+              - A deep parent chain can be started at any point when first given parent is given as ID
+              - Note that in principle both ID and name can be specified at the same time
+                but current implementation only always use just one of them, with ID
+                being prefered
+          name:
+            type: str
+            description:
+              - Identify parent by name
+              - Needs more internal API calls than using I(id) to map names to ID's under the hood
+              - When giving a parent chain with only names it must be complete up to the top
+              - Note that in principle both ID and name can be specified at the same time
+                but current implementation only always use just one of them, with ID
+                being prefered
 
 notes:
     - Presently, the I(realmRoles), I(clientRoles) and I(access) attributes returned by the Keycloak API
@@ -90,7 +108,6 @@ extends_documentation_fragment:
 
 author:
     - Adam Goossens (@adamgoossens)
-    - Mirko Wilhelmi (@morco)
 '''
 
 EXAMPLES = '''
@@ -182,7 +199,7 @@ EXAMPLES = '''
     auth_username: USERNAME
     auth_password: PASSWORD
     parents:
-      - my-new-kc-group
+      - name: my-new-kc-group
   register: result_new_kcgrp_sub
   delegate_to: localhost
 
@@ -197,7 +214,7 @@ EXAMPLES = '''
     auth_username: USERNAME
     auth_password: PASSWORD
     parents:
-      - "id:{{ result_new_kcgrp.end_state.id }}"
+      - id: "{{ result_new_kcgrp.end_state.id }}"
   delegate_to: localhost
 
 - name: Create a Keycloak subgroup of a subgroup (using parent names)
@@ -211,8 +228,8 @@ EXAMPLES = '''
     auth_username: USERNAME
     auth_password: PASSWORD
     parents:
-      - my-new-kc-group
-      - my-new-kc-group-sub
+      - name: my-new-kc-group
+      - name: my-new-kc-group-sub
   delegate_to: localhost
 
 - name: Create a Keycloak subgroup of a subgroup (using direct parent id)
@@ -226,7 +243,7 @@ EXAMPLES = '''
     auth_username: USERNAME
     auth_password: PASSWORD
     parents:
-      - "id:{{  result_new_kcgrp_sub }}"
+      - id: "{{ result_new_kcgrp_sub.end_state.id }}"
   delegate_to: localhost
 '''
 
@@ -306,7 +323,25 @@ def main():
         id=dict(type='str'),
         name=dict(type='str'),
         attributes=dict(type='dict'),
-        parents=dict(type='list', elements='str'),
+        realm_roles=dict(
+            type='dict', elements='dict',
+            options=dict(
+                strict=dict(type='bool', default=False),
+                present=dict(
+                    type='list', elements='str'
+                )
+                absent=dict(
+                    type='list', elements='str'
+                )
+            )
+        ),
+        parents=dict(
+            type='list', elements='dict',
+            options=dict(
+                id=dict(type='str'),
+                name=dict(type='str')
+            )
+        ),
     )
 
     argument_spec.update(meta_args)
@@ -331,7 +366,9 @@ def main():
     state = module.params.get('state')
     gid = module.params.get('id')
     name = module.params.get('name')
+
     attributes = module.params.get('attributes')
+    realm_roles = module.params.get('realm_roles')
 
     parents = module.params.get('parents')
 
@@ -343,9 +380,15 @@ def main():
             module.params['attributes'][key] = [val] if not isinstance(val, list) else val
 
     # Filter and map the parameters names that apply to the group
+    ignore_keys = list(keycloak_argument_spec().keys())\
+                + ['state', 'realm', 'parents', 'realm_roles']
+
     group_params = [x for x in module.params
-                    if x not in list(keycloak_argument_spec().keys()) + ['state', 'realm', 'parents'] and
+                    if x not in ignore_keys and
                     module.params.get(x) is not None]
+
+    realm_roles_present = realm_roles['present'] or []
+    realm_roles_absent = realm_roles['absent'] or []
 
     # See if it already exists in Keycloak
     if gid is None:
@@ -355,13 +398,33 @@ def main():
 
     if before_group is None:
         before_group = {}
+    elif not realm_roles['strict']:
+        # when not being exclusive for realm roles we need to combine
+        # already pre existing group role mappings with the ones given
+        # as param in the correct way
+        tmp = realm_roles_present + before_group[camel('realm_roles')]
+        realm_roles_present = []
+
+        for x in tmp:
+            # ignore the ones being on the explicit remove list
+            if x not in realm_roles_absent:
+                realm_roles_present.append(x)
 
     # Build a proposed changeset from parameters given to this module
     changeset = {}
 
     for param in group_params:
         new_param_value = module.params.get(param)
-        old_value = before_group[param] if param in before_group else None
+        old_value = before_group.get(camel(param), None)
+
+        # note: be careful to avoid matching errors just because
+        #   lists are sorted differently
+        if isinstance(new_param_value, list):
+            new_param_value = sorted(new_param_value)
+
+        if isinstance(old_value, list):
+            old_value = sorted(old_value)
+
         if new_param_value != old_value:
             changeset[camel(param)] = new_param_value
 

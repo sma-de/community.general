@@ -14,10 +14,6 @@
     state: present
   register: result
 
-- name: Debug
-  debug:
-    var: result
-
 - name: Assert group was created
   assert:
     that:
@@ -30,6 +26,9 @@
       - result.end_state.realmRoles == []
       - result.end_state.subGroups == []
 
+- set_fact:
+    test_group_id: "{{ result.end_state.id }}"
+
 - name: Group creation rerun (test for idempotency)
   community.general.keycloak_group:
     auth_keycloak_url: "{{ url }}"
@@ -40,10 +39,6 @@
     name: test-group
     state: present
   register: result
-
-- name: Debug
-  debug:
-    var: result
 
 - name: Assert that nothing has changed
   assert:
@@ -64,14 +59,10 @@
     auth_username: "{{ admin_user }}"
     auth_password: "{{ admin_password }}"
     realm: "{{ realm }}"
-    id: "{{ result.end_state.id }}"
+    id: "{{ test_group_id }}"
     name: new-test-group
     state: present
   register: result
-
-- name: Debug
-  debug:
-    var: result
 
 - name: Assert that group name was updated
   assert:
@@ -85,9 +76,6 @@
       - result.end_state.realmRoles == []
       - result.end_state.subGroups == []
 
-- set_fact:
-    remember_id: "{{ result.end_state.id }}"
-
 - name: Delete a keycloak group by id
   community.general.keycloak_group:
     auth_keycloak_url: "{{ url }}"
@@ -95,13 +83,9 @@
     auth_username: "{{ admin_user }}"
     auth_password: "{{ admin_password }}"
     realm: "{{ realm }}"
-    id: "{{ remember_id }}"
+    id: "{{ test_group_id }}"
     state: absent
   register: result
-
-- name: Debug
-  debug:
-    var: result
 
 - name: Assert that group was deleted
   assert:
@@ -116,13 +100,9 @@
     auth_username: "{{ admin_user }}"
     auth_password: "{{ admin_password }}"
     realm: "{{ realm }}"
-    id: "{{ remember_id }}"
+    id: "{{ test_group_id }}"
     state: absent
   register: result
-
-- name: Debug
-  debug:
-    var: result
 
 - name: Assert that nothing has changed
   assert:
@@ -145,10 +125,6 @@
             - item1
             - item2
   register: result
-
-- name: Debug
-  debug:
-    var: result
 
 - name: Assert that group was correctly created
   assert:
@@ -176,10 +152,6 @@
     state: absent
   register: result
 
-- name: Debug
-  debug:
-    var: result
-
 - name: Assert that group was deleted
   assert:
     that:
@@ -198,10 +170,6 @@
     name: rootgrp
   register: subgrp_basegrp_result
 
-- name: Debug
-  debug:
-    var: subgrp_basegrp_result
-
 - name: Create a subgroup using parent id
   community.general.keycloak_group:
     auth_keycloak_url: "{{ url }}"
@@ -211,12 +179,8 @@
     realm: "{{ realm }}"
     name: subgrp1
     parents:
-      - "id:{{ subgrp_basegrp_result.end_state.id }}"
+      - id: "{{ subgrp_basegrp_result.end_state.id }}"
   register: result
-
-- name: Debug
-  debug:
-    var: result
 
 - name: Assert that subgroup was correctly created
   assert:
@@ -239,12 +203,8 @@
     realm: "{{ realm }}"
     name: subgrp1
     parents:
-      - "id:{{ subgrp_basegrp_result.end_state.id }}"
+      - id: "{{ subgrp_basegrp_result.end_state.id }}"
   register: result
-
-- name: Debug
-  debug:
-    var: result
 
 - name: Assert that nothing has changed
   assert:
@@ -268,12 +228,8 @@
     id: "{{ result.end_state.id }}"
     name: new-subgrp1
     parents:
-      - "id:{{ subgrp_basegrp_result.end_state.id }}"
+      - id: "{{ subgrp_basegrp_result.end_state.id }}"
   register: result
-
-- name: Debug
-  debug:
-    var: result
 
 - name: Assert that subgroup name has changed correctly
   assert:
@@ -296,12 +252,8 @@
     realm: "{{ realm }}"
     name: subgrp2
     parents:
-      - rootgrp
+      - name: rootgrp
   register: result
-
-- name: Debug
-  debug:
-    var: result
 
 - name: Assert that subgroup was correctly created
   assert:
@@ -324,12 +276,8 @@
     realm: "{{ realm }}"
     name: subgrp2
     parents:
-      - rootgrp
+      - name: rootgrp
   register: result
-
-- name: Debug
-  debug:
-    var: result
 
 - name: Assert that nothing has changed
   assert:
@@ -353,13 +301,9 @@
     realm: "{{ realm }}"
     name: subsubgrp
     parents:
-      - rootgrp
-      - subgrp2
+      - name: rootgrp
+      - name: subgrp2
   register: result
-
-- name: Debug
-  debug:
-    var: result
 
 - name: Assert subgroup of subgroup was created
   assert:
@@ -382,13 +326,9 @@
     realm: "{{ realm }}"
     name: subsubgrp
     parents:
-      - rootgrp
-      - subgrp2
+      - name: rootgrp
+      - name: subgrp2
   register: result_subsubgrp
-
-- name: Debug
-  debug:
-    var: result_subsubgrp
 
 - name: Assert that nothing has changed
   assert:
@@ -411,12 +351,8 @@
     realm: "{{ realm }}"
     name: subsubsubgrp
     parents:
-      - "id:{{ result_subsubgrp.end_state.id }}"
+      - id: "{{ result_subsubgrp.end_state.id }}"
   register: result
-
-- name: Debug
-  debug:
-    var: result
 
 - name: Assert subgroup of subgroup was created
   assert:
@@ -439,12 +375,8 @@
     realm: "{{ realm }}"
     name: subsubsubgrp
     parents:
-      - "id:{{ result_subsubgrp.end_state.id }}"
+      - id: "{{ result_subsubgrp.end_state.id }}"
   register: result_subsubsubgrp
-
-- name: Debug
-  debug:
-    var: result_subsubsubgrp
 
 - name: Assert that nothing changed
   assert:
@@ -473,10 +405,6 @@
     state: absent
   register: result
 
-- name: Debug
-  debug:
-    var: result
-
 - name: Assert that subgroup was deleted
   assert:
     that:
@@ -494,10 +422,6 @@
     state: absent
   register: result
 
-- name: Debug
-  debug:
-    var: result
-
 - name: Assert that nothing changed
   assert:
     that:
@@ -513,13 +437,9 @@
     realm: "{{ realm }}"
     name: new-subgrp1
     parents:
-      - rootgrp
+      - name: rootgrp
     state: absent
   register: result
-
-- name: Debug
-  debug:
-    var: result
 
 - name: Assert that subgroup was deleted
   assert:
@@ -536,13 +456,9 @@
     realm: "{{ realm }}"
     name: new-subgrp1
     parents:
-      - rootgrp
+      - name: rootgrp
     state: absent
   register: result
-
-- name: Debug
-  debug:
-    var: result
 
 - name: Assert that nothing has changed
   assert:
@@ -561,10 +477,6 @@
     state: absent
   register: result
 
-- name: Debug
-  debug:
-    var: result
-
 - name: Assert that group was deleted
   assert:
     that:
@@ -581,10 +493,6 @@
     name: rootgrp
     state: absent
   register: result
-
-- name: Debug
-  debug:
-    var: result
 
 - name: Assert that group was deleted
   assert:
