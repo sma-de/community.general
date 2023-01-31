@@ -1,0 +1,159 @@
+---
+# Copyright (c) Ansible Project
+# GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+- name: Create a keycloak group
+  community.general.keycloak_group:
+    auth_keycloak_url: "{{ url }}"
+    auth_realm: "{{ admin_realm }}"
+    auth_username: "{{ admin_user }}"
+    auth_password: "{{ admin_password }}"
+    realm: "{{ realm }}"
+    name: test-group
+    state: present
+  register: result
+
+- name: Assert group was created
+  assert:
+    that:
+      - result is changed
+      - result.end_state != {}
+      - result.end_state.name == "test-group"
+      - result.end_state.path == "/test-group"
+      - result.end_state.attributes == {}
+      - result.end_state.clientRoles == {}
+      - result.end_state.realmRoles == []
+      - result.end_state.subGroups == []
+
+- set_fact:
+    test_group_id: "{{ result.end_state.id }}"
+
+- name: Group creation rerun (test for idempotency)
+  community.general.keycloak_group:
+    auth_keycloak_url: "{{ url }}"
+    auth_realm: "{{ admin_realm }}"
+    auth_username: "{{ admin_user }}"
+    auth_password: "{{ admin_password }}"
+    realm: "{{ realm }}"
+    name: test-group
+    state: present
+  register: result
+
+- name: Assert that nothing has changed
+  assert:
+    that:
+      - result is not changed
+      - result.end_state != {}
+      - result.end_state.name == "test-group"
+      - result.end_state.path == "/test-group"
+      - result.end_state.attributes == {}
+      - result.end_state.clientRoles == {}
+      - result.end_state.realmRoles == []
+      - result.end_state.subGroups == []
+
+- name: Update the name of a keycloak group
+  community.general.keycloak_group:
+    auth_keycloak_url: "{{ url }}"
+    auth_realm: "{{ admin_realm }}"
+    auth_username: "{{ admin_user }}"
+    auth_password: "{{ admin_password }}"
+    realm: "{{ realm }}"
+    id: "{{ test_group_id }}"
+    name: new-test-group
+    state: present
+  register: result
+
+- name: Assert that group name was updated
+  assert:
+    that:
+      - result is changed
+      - result.end_state != {}
+      - result.end_state.name == "new-test-group"
+      - result.end_state.path == "/new-test-group"
+      - result.end_state.attributes == {}
+      - result.end_state.clientRoles == {}
+      - result.end_state.realmRoles == []
+      - result.end_state.subGroups == []
+
+- name: Delete a keycloak group by id
+  community.general.keycloak_group:
+    auth_keycloak_url: "{{ url }}"
+    auth_realm: "{{ admin_realm }}"
+    auth_username: "{{ admin_user }}"
+    auth_password: "{{ admin_password }}"
+    realm: "{{ realm }}"
+    id: "{{ test_group_id }}"
+    state: absent
+  register: result
+
+- name: Assert that group was deleted
+  assert:
+    that:
+      - result is changed
+      - result.end_state == {}
+
+- name: Redo group deletion (check for idempotency)
+  community.general.keycloak_group:
+    auth_keycloak_url: "{{ url }}"
+    auth_realm: "{{ admin_realm }}"
+    auth_username: "{{ admin_user }}"
+    auth_password: "{{ admin_password }}"
+    realm: "{{ realm }}"
+    id: "{{ test_group_id }}"
+    state: absent
+  register: result
+
+- name: Assert that nothing has changed
+  assert:
+    that:
+      - result is not changed
+      - result.end_state == {}
+
+- name: Create a keycloak group with some custom attributes
+  community.general.keycloak_group:
+    auth_keycloak_url: "{{ url }}"
+    auth_realm: "{{ admin_realm }}"
+    auth_username: "{{ admin_user }}"
+    auth_password: "{{ admin_password }}"
+    realm: "{{ realm }}"
+    name: my-new_group
+    attributes:
+        attrib1: value1
+        attrib2: value2
+        attrib3:
+            - item1
+            - item2
+  register: result
+
+- name: Assert that group was correctly created
+  assert:
+    that:
+      - result is changed
+      - result.end_state != {}
+      - result.end_state.name == "my-new_group"
+      - result.end_state.path == "/my-new_group"
+      - result.end_state.clientRoles == {}
+      - result.end_state.realmRoles == []
+      - result.end_state.subGroups == []
+      - result.end_state.attributes != {}
+      - result.end_state.attributes.attrib1 == ["value1"]
+      - result.end_state.attributes.attrib2 == ["value2"]
+      - result.end_state.attributes.attrib3 == ["item1", "item2"]
+
+- name: Delete a keycloak group based on name
+  community.general.keycloak_group:
+    auth_keycloak_url: "{{ url }}"
+    auth_realm: "{{ admin_realm }}"
+    auth_username: "{{ admin_user }}"
+    auth_password: "{{ admin_password }}"
+    realm: "{{ realm }}"
+    name: my-new_group
+    state: absent
+  register: result
+
+- name: Assert that group was deleted
+  assert:
+    that:
+      - result is changed
+      - result.end_state == {}

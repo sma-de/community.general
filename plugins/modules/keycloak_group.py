@@ -385,7 +385,7 @@ def main():
 
     # Filter and map the parameters names that apply to the group
     ignore_keys = list(keycloak_argument_spec().keys())\
-                + ['state', 'realm', 'parents', 'realm_roles']
+                + ['state', 'realm', 'parents']
 
     group_params = [x for x in module.params
                     if x not in ignore_keys and
@@ -417,8 +417,15 @@ def main():
     # Build a proposed changeset from parameters given to this module
     changeset = {}
 
+    modparams_overwrites = {
+      'realm_roles': realm_roles_present,
+    }
+
+    ##module.fail_json(msg="da role-present => " + str(realm_roles_present))
+    ##module.fail_json(msg="da group_params => " + str(group_params))
+
     for param in group_params:
-        new_param_value = module.params.get(param)
+        new_param_value = modparams_overwrites.get(param, module.params.get(param))
         old_value = before_group.get(camel(param), None)
 
         # note: be careful to avoid matching errors just because
@@ -432,6 +439,7 @@ def main():
         if new_param_value != old_value:
             changeset[camel(param)] = new_param_value
 
+    ##module.fail_json(msg="da changeset => " + str(changeset))
     # Prepare the desired values using the existing values (non-existence results in a dict that is save to use as a basis)
     desired_group = before_group.copy()
     desired_group.update(changeset)
@@ -496,6 +504,7 @@ def main():
                 module.exit_json(**result)
 
             # do the update
+            module.fail_json(msg="grp update => " + str(desired_group))
             kc.update_group(desired_group, realm=realm)
 
             after_group = kc.get_group_by_groupid(desired_group['id'], realm=realm)
